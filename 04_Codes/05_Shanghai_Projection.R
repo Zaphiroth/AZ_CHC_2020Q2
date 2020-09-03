@@ -132,6 +132,6 @@ proj.sh <- sh.sample %>%
   # mutate(price = sales / units) %>% 
   select(-growth, -y)
 
-write.xlsx(proj.sh, "03_Outputs/07_AZ_CHC_Projection_Shanghai.xlsx")
+write.xlsx(proj.sh, "03_Outputs/05_AZ_CHC_Projection_Shanghai.xlsx")
 
 
