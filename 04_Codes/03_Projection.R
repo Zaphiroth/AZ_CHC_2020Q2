@@ -79,7 +79,7 @@ proj.parm <- data.table(filtered.set)[, {
 }, by = list(city, quarter, packid, TA, flag_mkt, seg)]
 
 # QC: TRUE means no multiple match
-sum(universe.set$panel_sales, na.rm = TRUE) <= sum(proj.quarter$panel_sales, na.rm = TRUE)
+sum(filtered.set$panel_sales, na.rm = TRUE) <= sum(proj.quarter$panel_sales, na.rm = TRUE)
 
 
 ##---- Result ----
@@ -88,8 +88,9 @@ proj.total <- universe.set %>%
                                  "TA", "flag_mkt", "packid")) %>% 
   mutate(panel_sales = ifelse(is.na(panel_sales), 0, panel_sales)) %>% 
   left_join(proj.parm, by = c("quarter", "city", "TA", "flag_mkt", "packid", "seg")) %>% 
-  mutate(predict_sales = est * slope + intercept,
-         final_sales = ifelse(panel == 0, predict_sales, panel_sales)) %>% 
+  mutate(predict_sales = est * slope + intercept, 
+         final_sales = if_else(panel == 0, predict_sales, panel_sales), 
+         final_sales = if_else(is.na(final_sales), panel_sales, final_sales)) %>% 
   filter(final_sales > 0) %>% 
   mutate(year = stri_sub(quarter, 1, 4)) %>% 
   group_by(year, quarter, province, city, district, pchc, TA, flag_mkt, atc4, 

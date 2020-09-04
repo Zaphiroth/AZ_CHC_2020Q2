@@ -84,9 +84,98 @@ edl2 <- read.xlsx('02_Inputs/交付相关- EDL汇总.xlsx', sheet = 3) %>%
   distinct(molecule = Molecule.Composition, pack = stri_trim_both(Pack_m1), 
            EDL_DESC2 = EDL_DESC)
 
+# factor info
+factor.info <- read.xlsx('02_Inputs/Factor.xlsx') %>% 
+  pivot_longer(cols = ends_with('市'), 
+               names_to = 'city', 
+               names_prefix = '?市', 
+               values_to = 'factor')
+
 
 ##---- Result ----
-# 2020Q1 & 2020Q2
+# CV Market
+az.chc.cv <- proj.price %>% 
+  mutate(packid = if_else(stri_sub(packid, 1, 5) %in% market.cndrug$PROD_COD, 
+                          'TCM Others', packid), 
+         atc4 = if_else(packid == 'TCM Others', 'TCM Others', atc4), 
+         molecule = if_else(packid == 'TCM Others', 'TCM Others', molecule), 
+         product = if_else(packid == 'TCM Others', 'TCM Others', product)) %>% 
+  group_by(year, quarter, province, city, TA, flag_mkt, atc4, molecule, product, packid) %>% 
+  summarise(units = sum(units, na.rm = TRUE), 
+            sales = sum(sales, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(market.mapping, by = 'flag_mkt') %>% 
+  left_join(factor.info, by = c('小市场' = 'Market', 'city')) %>% 
+  mutate(factor = if_else(is.na(factor), 1, factor), 
+         units = units * factor, 
+         sales = sales * factor) %>% 
+  left_join(product.info, by = 'packid') %>% 
+  filter(`小市场` %in% c('Crestor Market', 'Brilinta Market', 'HTN Market')) %>% 
+  mutate(`小市场` = 'CV Market')
+
+# PPI IV Market & PPI Oral Market
+az.chc.ppi <- proj.price %>% 
+  mutate(packid = if_else(stri_sub(packid, 1, 5) %in% market.cndrug$PROD_COD, 
+                          'TCM Others', packid), 
+         atc4 = if_else(packid == 'TCM Others', 'TCM Others', atc4), 
+         molecule = if_else(packid == 'TCM Others', 'TCM Others', molecule), 
+         product = if_else(packid == 'TCM Others', 'TCM Others', product)) %>% 
+  group_by(year, quarter, province, city, TA, flag_mkt, atc4, molecule, product, packid) %>% 
+  summarise(units = sum(units, na.rm = TRUE), 
+            sales = sum(sales, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(market.mapping, by = 'flag_mkt') %>% 
+  left_join(factor.info, by = c('小市场' = 'Market', 'city')) %>% 
+  mutate(factor = if_else(is.na(factor), 1, factor), 
+         units = units * factor, 
+         sales = sales * factor) %>% 
+  left_join(product.info, by = 'packid') %>% 
+  filter(`小市场` %in% c('PPI (Oral/IV) Market')) %>% 
+  mutate(`小市场` = if_else(`剂型` %in% c('冻干粉针剂'), 
+                         'PPI IV Market', 'PPI Oral Market'))
+
+# XZK Market(Excl Potent Statin)
+az.chc.xzk <- proj.price %>% 
+  mutate(packid = if_else(stri_sub(packid, 1, 5) %in% market.cndrug$PROD_COD, 
+                          'TCM Others', packid), 
+         atc4 = if_else(packid == 'TCM Others', 'TCM Others', atc4), 
+         molecule = if_else(packid == 'TCM Others', 'TCM Others', molecule), 
+         product = if_else(packid == 'TCM Others', 'TCM Others', product)) %>% 
+  group_by(year, quarter, province, city, TA, flag_mkt, atc4, molecule, product, packid) %>% 
+  summarise(units = sum(units, na.rm = TRUE), 
+            sales = sum(sales, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(market.mapping, by = 'flag_mkt') %>% 
+  left_join(factor.info, by = c('小市场' = 'Market', 'city')) %>% 
+  mutate(factor = if_else(is.na(factor), 1, factor), 
+         units = units * factor, 
+         sales = sales * factor) %>% 
+  left_join(product.info, by = 'packid') %>% 
+  filter(`小市场` %in% c('XZK Market')) %>% 
+  filter(!(molecule %in% c('ATORVASTATIN+AMLODIPINE', 'ATORVASTATIN', 'ROSUVASTATIN'))) %>% 
+  mutate(`小市场` = 'XZK Market(Excl Potent Statin)')
+
+# IOAD Market
+az.chc.ioad <- proj.price %>% 
+  mutate(packid = if_else(stri_sub(packid, 1, 5) %in% market.cndrug$PROD_COD, 
+                          'TCM Others', packid), 
+         atc4 = if_else(packid == 'TCM Others', 'TCM Others', atc4), 
+         molecule = if_else(packid == 'TCM Others', 'TCM Others', molecule), 
+         product = if_else(packid == 'TCM Others', 'TCM Others', product)) %>% 
+  group_by(year, quarter, province, city, TA, flag_mkt, atc4, molecule, product, packid) %>% 
+  summarise(units = sum(units, na.rm = TRUE), 
+            sales = sum(sales, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(market.mapping, by = 'flag_mkt') %>% 
+  left_join(factor.info, by = c('小市场' = 'Market', 'city')) %>% 
+  mutate(factor = if_else(is.na(factor), 1, factor), 
+         units = units * factor, 
+         sales = sales * factor) %>% 
+  left_join(product.info, by = 'packid') %>% 
+  filter(`小市场` %in% c('Onglyza Market', 'Forxiga(SGLT2) Market')) %>% 
+  mutate(`小市场` = 'IOAD Market')
+
+# total market
 az.chc <- proj.price %>% 
   mutate(packid = if_else(stri_sub(packid, 1, 5) %in% market.cndrug$PROD_COD, 
                           'TCM Others', packid), 
@@ -98,15 +187,25 @@ az.chc <- proj.price %>%
             sales = sum(sales, na.rm = TRUE)) %>% 
   ungroup() %>% 
   left_join(market.mapping, by = 'flag_mkt') %>% 
-  left_join(city.en, by = c('province' = 'Province_C', 'city' = 'City_C')) %>% 
+  left_join(factor.info, by = c('小市场' = 'Market', 'city')) %>% 
+  mutate(factor = if_else(is.na(factor), 1, factor), 
+         units = units * factor, 
+         sales = sales * factor) %>% 
   left_join(product.info, by = 'packid') %>% 
+  bind_rows(az.chc.cv, az.chc.ppi, az.chc.xzk, az.chc.ioad) %>% 
+  left_join(city.en, by = c('province' = 'Province_C', 'city' = 'City_C')) %>% 
   left_join(corp.info, by = 'packid') %>% 
   left_join(vbp2, by = c('city', 'packid')) %>% 
   left_join(vbp3, by = c('province', 'packid')) %>% 
   left_join(edl1, by = 'packid') %>% 
   mutate(pack = stri_trim_both(stri_sub(Pack_DESC, 1, -4))) %>% 
   left_join(edl2, by = c('molecule', 'pack')) %>% 
-  mutate(`IMS 药品ID` = stri_paste(stri_sub(packid, 1, 5), "-", packid), 
+  mutate(Molecule_C = if_else(packid == 'TCM Others', 'TCM Others', Molecule_C), 
+         PROD_DES_C = if_else(packid == 'TCM Others', 'TCM Others', PROD_DES_C), 
+         Pack_DESC = if_else(packid == 'TCM Others', 'TCM Others', Pack_DESC), 
+         CORP_DES_C = if_else(packid == 'TCM Others', 'TCM Others', CORP_DES_C), 
+         Corp_EName = if_else(packid == 'TCM Others', 'TCM Others', Corp_EName), 
+         `IMS 药品ID` = stri_paste(stri_sub(packid, 1, 5), "-", packid), 
          `IMS 药品ID` = if_else(packid == "TCM Others", "TCM Others", `IMS 药品ID`), 
          VBP_Excu = if_else(is.na(VBPDate1), VBPDate2, VBPDate1), 
          VBP = if_else(is.na(IS_VBP_pack1), IS_VBP_pack2, IS_VBP_pack1), 
@@ -118,7 +217,8 @@ az.chc <- proj.price %>%
          `价格` = round(sales / units),
          `单位` = NA_character_) %>% 
   filter(!(`小市场` == 'Non-Oral Expectorant Market' & 
-             !(`剂型` %in% c("粉针剂", "雾化溶液", "吸入剂", "注射液")))) %>% 
+             !(`剂型` %in% c("粉针剂", "冻干粉针剂", "雾化溶液", "吸入剂", 
+                           "吸入溶液剂", "注射液", "小容量注射液", "大容量注射液")))) %>% 
   select(Market = `小市场`, 
          Year = year, 
          YQ = quarter, 
@@ -154,15 +254,15 @@ az.chc <- proj.price %>%
 write.xlsx(az.chc, '03_Outputs/06_AZ_CHC_2020Q1Q2.xlsx')
 
 # QC
-chk <- az.chc %>% 
-  filter(is.na(EDL_DESC), packid != 'TCM Others') %>% 
-  select(packid, molecule, pack) %>% 
-  distinct()
+# chk <- az.chc %>% 
+#   filter(is.na(EDL_DESC), packid != 'TCM Others') %>% 
+#   select(packid, molecule, pack) %>% 
+#   distinct()
 
 # delivery
 az.delivery.history <- read_xlsx('02_Inputs/AZ_CHC_2017Q1_2020Q1_0831.xlsx')
 
-az.delivery <- az.chc %>% 
+az.delivery <- bind_rows(az.chc, proj.sh) %>% 
   filter(YQ == '2020Q2') %>% 
   bind_rows(az.delivery.history) %>% 
   arrange(YQ, City_C, Market, Pack_ID)

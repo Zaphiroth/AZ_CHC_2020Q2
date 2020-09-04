@@ -281,6 +281,7 @@ market.mapping <- read.xlsx("02_Inputs/Market_Def_2020_CHC_0317.xlsx",
 
 market.cndrug <- read.xlsx("02_Inputs/Market_Def_2020_CHC_0317.xlsx", 
                            sheet = "XZK-其他降脂中药")
+
 # GI
 gi.1 <- raw.az %>% 
   mutate(
@@ -513,7 +514,7 @@ cv.13 <- raw.pfizer %>%
   ) %>% 
   filter(flag_mkt != 0)
 
-cv.14 <- raw.az %>% 
+cv.14 <- raw.pfizer %>% 
   mutate(
     flag_mkt = case_when(
       atc4 == "C10A1" ~ 14,
@@ -627,10 +628,7 @@ dm.22 <- raw.az %>%
   ) %>% 
   filter(flag_mkt != 0)
 
-dm.23 <- bind_rows(dm.21, dm.22) %>% 
-  mutate(flag_mkt = 23)
-
-raw.dm <- bind_rows(dm.20, dm.21, dm.22, dm.23) %>% 
+raw.dm <- bind_rows(dm.20, dm.21, dm.22) %>% 
   mutate(TA = 'DM') %>% 
   group_by(year, date, quarter, province, city, district, pchc, TA, atc4, nfc, 
            molecule, product, corp, packid, flag_mkt) %>% 
@@ -640,11 +638,20 @@ raw.dm <- bind_rows(dm.20, dm.21, dm.22, dm.23) %>%
   left_join(market.mapping, by = 'flag_mkt')
 
 # Renal
-renal.24 <- raw.az %>% 
+renal.23 <- raw.az %>% 
   mutate(
     flag_mkt = case_when(
       !(molecule %in% c("FOLIC ACID", "CYANOCOBALAMIN+FOLIC ACID+NICOTINAMIDE")) & 
-        stri_sub(atc4, 1, 3) == "B03" ~ 24, 
+        stri_sub(atc4, 1, 3) == "B03" ~ 23, 
+      TRUE ~ 0
+    )
+  ) %>% 
+  filter(flag_mkt != 0)
+
+renal.24 <- raw.az %>% 
+  mutate(
+    flag_mkt = case_when(
+      molecule == "POLYSTYRENE SULFONATE" ~ 24, 
       TRUE ~ 0
     )
   ) %>% 
@@ -653,22 +660,13 @@ renal.24 <- raw.az %>%
 renal.25 <- raw.az %>% 
   mutate(
     flag_mkt = case_when(
-      molecule == "POLYSTYRENE SULFONATE" ~ 25, 
+      product == "Lokelma" ~ 25, 
       TRUE ~ 0
     )
   ) %>% 
   filter(flag_mkt != 0)
 
-renal.26 <- raw.az %>% 
-  mutate(
-    flag_mkt = case_when(
-      product == "Lokelma" ~ 26, 
-      TRUE ~ 0
-    )
-  ) %>% 
-  filter(flag_mkt != 0)
-
-raw.renal <- bind_rows(renal.24, renal.25, renal.26) %>% 
+raw.renal <- bind_rows(renal.23, renal.24, renal.25) %>% 
   mutate(TA = 'Renal') %>% 
   group_by(year, date, quarter, province, city, district, pchc, TA, atc4, nfc, 
            molecule, product, corp, packid, flag_mkt) %>% 
