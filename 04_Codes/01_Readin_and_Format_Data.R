@@ -164,7 +164,7 @@ raw.az <- bind_rows(raw.az.ah, raw.az.bj, raw.az.js,
            # product = Prd_desc, 
            # Corp_ID, 
            packid = stri_pad_left(packcode, 7, 0), 
-           units = Value / Price, 
+           units = if_else(is.na(Volume), Value / Price, Volume), 
            sales = Value) %>% 
   left_join(pchc.mapping3, by = c('province', 'city', 'district', 'hospital')) %>% 
   bind_rows(raw.gz1, raw.gz2, history.az) %>% 
@@ -207,7 +207,7 @@ raw.servier <- bind_rows(raw.servier.ah, raw.servier.bj, raw.servier.js,
            # product = Prd_desc, 
            # Corp_ID, 
            packid = stri_pad_left(packcode, 7, 0), 
-           units = Value / Price, 
+           units = if_else(is.na(Volume), Value / Price, Volume), 
            sales = Value) %>% 
   left_join(pchc.mapping3, by = c('province', 'city', 'district', 'hospital')) %>% 
   bind_rows(raw.gz1, raw.gz2, history.servier) %>% 
@@ -249,7 +249,7 @@ raw.pfizer <- bind_rows(raw.pfizer.ah, raw.pfizer.bj, raw.pfizer.js,
            # product = Prd_desc, 
            # Corp_ID, 
            packid = stri_pad_left(packcode, 7, 0), 
-           units = Value / Price, 
+           units = if_else(is.na(Volume), Value / Price, Volume), 
            sales = Value) %>% 
   left_join(pchc.mapping3, by = c('province', 'city', 'district', 'hospital')) %>% 
   bind_rows(raw.gz1, raw.gz2, history.pfizer) %>% 

@@ -111,26 +111,77 @@ sh.growth.add <- bind_rows(merge(sh.growth, 0),
                            merge(surplus.growth, 2))
 
 
+##---- Price ----
+sh.price.origin <- price.origin %>% 
+  filter(city == '北京') %>% 
+  mutate(province = '上海', 
+         city = '上海')
+
+sh.price.city <- price.city %>% 
+  filter(city == '北京') %>% 
+  mutate(province = '上海', 
+         city = '上海')
+
+sh.price.province <- price.province %>% 
+  filter(province == '北京') %>% 
+  mutate(province = '上海')
+
+sh.price.year <- price.year %>% 
+  filter(province == '北京') %>% 
+  mutate(province = '上海')
+
+
 ##---- Result ----
 proj.sh <- sh.sample %>% 
-  # group_by(year, quarter, province, city, TA, atc4, molecule_desc, packid) %>% 
-  # summarise(units = sum(units, na.rm = TRUE),
-  #           sales = sum(sales, na.rm = TRUE)) %>% 
-  # ungroup() %>% 
   left_join(sh.growth.add, by = c("YQ" = "quarter", "City_C" = "city", 
                                   "Pack_ID" = "packid")) %>% 
   mutate(`Total Unit` = `Total Unit` * growth, 
          `Value (RMB)` = `Value (RMB)` * growth, 
          `Counting Unit` = `Counting Unit` * growth) %>% 
-  filter(`Total Unit` > 0, `Value (RMB)` > 0, `Counting Unit` > 0) %>% 
+  filter(`Total Unit` > 0, `Value (RMB)` > 0) %>% 
   mutate(Year = "2020", 
          YQ = gsub("2019", "2020", YQ)) %>% 
-  # group_by(year, quarter, province, city, TA, atc4, packid) %>% 
-  # summarise(units = sum(units, na.rm = TRUE),
-  #           sales = sum(sales, na.rm = TRUE)) %>% 
-  # ungroup() %>% 
-  # mutate(price = sales / units) %>% 
   select(-growth, -y)
+
+sh.cv <- proj.sh %>% 
+  filter(Market %in% c('Crestor Market', 'Brilinta Market', 'HTN Market')) %>% 
+  mutate(Market = 'CV Market')
+
+sh.forxiga <- delivery.az %>% 
+  filter(Market == 'Forxiga(SGLT2) Market', City_C == '上海') %>% 
+  mutate(YQ = '2020Q2', 
+         `Total Unit` = `Total Unit` * 1.959881, 
+         `Value (RMB)` = `Value (RMB)` * 1.959881, 
+         `Counting Unit` = `Counting Unit` * 1.959881)
+
+sh.ioad <- proj.sh %>% 
+  filter(Market == 'Onglyza Market') %>% 
+  bind_rows(sh.forxiga) %>% 
+  mutate(Market = 'IOAD Market')
+
+az.chc.sh <- proj.sh %>% 
+  filter(!(Market %in% c('CV Market', 'IOAD Market'))) %>% 
+  bind_rows(sh.cv, sh.forxiga, sh.ioad) %>% 
+  left_join(sh.price.origin, by = c('Province_C' = 'province', 'City_C' = 'city', 
+                                    'YQ' = 'quarter', 'Pack_ID' = 'packid')) %>% 
+  left_join(sh.price.city, by = c('Province_C' = 'province', 'City_C' = 'city', 
+                                  'Year' = 'year', 'Pack_ID' = 'packid')) %>% 
+  left_join(sh.price.province, by = c('Province_C' = 'province', 'YQ' = 'quarter', 
+                                      'Pack_ID' = 'packid')) %>% 
+  left_join(sh.price.year, by = c('Province_C' = 'province', 'Year' = 'year', 
+                                  'Pack_ID' = 'packid')) %>% 
+  left_join(price.pack, by = c('YQ' = 'quarter', 'Pack_ID' = 'packid')) %>% 
+  left_join(price.pack.year, by = c('Year' = 'year', 'Pack_ID' = 'packid')) %>% 
+  mutate(`价格` = price, 
+         `价格` = if_else(is.na(`价格`), price_city, `价格`), 
+         `价格` = if_else(is.na(`价格`), price_prov, `价格`), 
+         `价格` = if_else(is.na(`价格`), price_year, `价格`), 
+         `价格` = if_else(is.na(`价格`), price_pack, `价格`), 
+         `价格` = if_else(is.na(`价格`), price_pack_year, `价格`), 
+         `价格` = if_else(is.na(`价格`), `Value (RMB)` / `Total Unit`, `价格`), 
+         `价格` = ifelse(Pack_ID == 'TCM Others', NA, `价格`)) %>% 
+  mutate(`Total Unit` = if_else(Pack_ID == 'TCM Others', `Total Unit`, `Value (RMB)` / `价格`), 
+         `Counting Unit` = ifelse(Pack_ID == 'TCM Others', NA, `Total Unit` * `转换比`))
 
 write.xlsx(proj.sh, "03_Outputs/05_AZ_CHC_Projection_Shanghai.xlsx")
 

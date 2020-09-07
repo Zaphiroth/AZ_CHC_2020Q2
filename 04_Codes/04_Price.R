@@ -9,7 +9,8 @@
 ##---- Origin Price ----
 price.market <- raw.total %>% 
   filter(year %in% c('2020'), 
-         sales > 0, units > 0)
+         sales > 0, units > 0) %>% 
+  filter(province != '福建')
 
 price.origin <- price.market %>% 
   group_by(packid, quarter, province, city) %>% 
@@ -79,7 +80,7 @@ proj.price <- proj.total %>%
   left_join(price.pack, by = c("quarter", "packid")) %>% 
   left_join(price.pack.year, by = c('year', 'packid')) %>% 
   mutate(price = if_else(is.na(price), price_city, price), 
-         price = if_else(is.na(price), price_prov, price),
+         price = if_else(is.na(price), price_prov, price), 
          price = if_else(is.na(price), price_year, price), 
          price = if_else(is.na(price), price_pack, price), 
          price = if_else(is.na(price), price_pack_year, price)) %>% 
