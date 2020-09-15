@@ -8,7 +8,7 @@
 
 ##---- Mapping table ----
 # PCHC code
-pchc.universe <- read.xlsx("02_Inputs/Universe_PCHCCode_20200901.xlsx", sheet = "PCHC")
+pchc.universe <- read.xlsx("02_Inputs/Universe_PCHCCode_20200911.xlsx", sheet = "PCHC")
 
 pchc.mapping1 <- pchc.universe %>% 
   filter(!is.na(`单位名称`), !is.na(PCHC_Code)) %>% 
@@ -271,7 +271,7 @@ write.xlsx(raw.pfizer, '03_Outputs/01_Raw_Pfizer.xlsx')
 
 ##---- TA ----
 # market definition
-market.mapping <- read.xlsx("02_Inputs/Market_Def_2020_CHC_0317.xlsx", 
+market.mapping <- read.xlsx("02_Inputs/Market_Def_2020_CHC_0909.xlsx", 
                             sheet = "MKT DEF")[, -1] %>% 
   select(`小市场`, `大市场`, `购买方式`, flag_mkt = flag) %>% 
   distinct() %>% 
@@ -279,7 +279,7 @@ market.mapping <- read.xlsx("02_Inputs/Market_Def_2020_CHC_0317.xlsx",
   mutate(`购买方式` = paste(unique(`购买方式`), collapse = "+")) %>% 
   ungroup()
 
-market.cndrug <- read.xlsx("02_Inputs/Market_Def_2020_CHC_0317.xlsx", 
+market.cndrug <- read.xlsx("02_Inputs/Market_Def_2020_CHC_0909.xlsx", 
                            sheet = "XZK-其他降脂中药")
 
 # GI
@@ -591,7 +591,7 @@ dm.20 <- raw.servier %>%
   mutate(
     flag_mkt = case_when(
       stri_sub(atc4, 1, 4) %in% c("A10L", "A10H", "A10M", "A10J", 
-                                  "A10K", "A10S", "A10N") ~ 20, 
+                                  "A10K", "A10P", "A10S", "A10N") ~ 20, 
       TRUE ~ 0
     )
   ) %>% 
