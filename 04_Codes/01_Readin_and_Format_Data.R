@@ -8,7 +8,7 @@
 
 ##---- Mapping table ----
 # PCHC code
-pchc.universe <- read.xlsx("02_Inputs/Universe_PCHCCode_20200911.xlsx", sheet = "PCHC")
+pchc.universe <- read.xlsx("02_Inputs/Universe_PCHCCode_20200927.xlsx", sheet = "PCHC")
 
 pchc.mapping1 <- pchc.universe %>% 
   filter(!is.na(`单位名称`), !is.na(PCHC_Code)) %>% 

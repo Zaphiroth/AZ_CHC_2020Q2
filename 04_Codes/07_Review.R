@@ -172,11 +172,67 @@ az.internal.2019 <- read_xls('05_Internal_Review/onglyza&Symbicort By Qtr.xls') 
 write.xlsx(az.internal.2019, '05_Internal_Review/BJ_ONGLYZA&SYMBICORT_Match.xlsx')
 
 
+##---- All internal check ----
+pchc.mapping.city <- pchc.mapping3 %>% 
+  group_by(province, city, hospital) %>% 
+  summarise(district = first(na.omit(district)), 
+            pchc = first(na.omit(pchc))) %>% 
+  ungroup()
 
+internal.raw <- read.csv('05_Internal_Review/All_Internal_Data/CHC check data.csv', encoding = 'UTF-8')
+internal.mapping <- read.xlsx('05_Internal_Review/All_Internal_Data/internal_packid_mapping.xlsx')
 
+internal.data <- internal.raw %>% 
+  mutate(city = gsub('市', '', X.U.FEFF.CityNameC)) %>% 
+  left_join(pchc.mapping.city, by = c('city', 'Ins.Name' = 'hospital'))
 
+chk <- internal.data %>% 
+  filter(is.na(pchc)) %>% 
+  distinct(city, Ins.Name) %>% 
+  filter(grepl('社区卫生服务中心', Ins.Name), !grepl('服务站|卫生室', Ins.Name)) %>% 
+  arrange(city, Ins.Name)
 
+write.xlsx(chk, '05_Internal_Review/All_Internal_Data/check1.xlsx')
 
+# internal
+internal.raw <- read.csv('05_Internal_Review/All_Internal_Data/CHC check data.csv', encoding = 'UTF-8')
+internal.mapping <- read.xlsx('05_Internal_Review/All_Internal_Data/internal_packid_mapping.xlsx')
 
+internal.pack <- internal.raw %>% 
+  filter(InsSubType_SUB == '社区卫生服务中心') %>% 
+  mutate(city = gsub('市', '', X.U.FEFF.CityNameC), 
+         sales = stri_replace_all_fixed(Actual, ',', ''), 
+         sales = as.numeric(sales), 
+         units = stri_replace_all_fixed(Actual.Qty, ',', ''), 
+         units = as.numeric(units)) %>% 
+  left_join(internal.mapping, by = c('SkuNameE' = 'SKU_E_NAME')) %>% 
+  filter(!is.na(Packid)) %>% 
+  group_by(YQ = Quarter, City_C = city, Pack_ID = stri_pad_left(Packid, 7, 0)) %>% 
+  summarise(Actual = sum(sales, na.rm = TRUE), 
+            Actual.Qty = sum(units, na.rm = TRUE)) %>% 
+  ungroup()
+
+# delivery
+delivery.raw <- read_xlsx('06_Deliveries/AZ_CHC_2017Q1_2020Q2_20200916.xlsx')
+
+delivery.pack <- delivery.raw %>% 
+  filter(Pack_ID %in% unique(internal.pack$packid)) %>% 
+  group_by(quarter = YQ, city = City_C, packid = stri_pad_left(Pack_ID, 7, 0)) %>% 
+  summarise(sales_delivery = first(`Value (RMB)`)) %>% 
+  ungroup()
+
+# contrast
+contrast.pack <- delivery.raw %>% 
+  filter(stri_sub(Prod_Ename, -3, -1) %in% c('AZM', 'AZN') | Prod_Ename == 'XUE ZHI KANG       BWX', 
+         Year %in% c('2018', '2019', '2020')) %>% 
+  select(-Market, -`购买方式`) %>% 
+  distinct() %>% 
+  left_join(internal.pack, by = c("YQ", "City_C", "Pack_ID")) %>% 
+  mutate(Actual = if_else(is.na(Actual), 0, Actual), 
+         Actual.Qty = if_else(is.na(Actual.Qty), 0, Actual.Qty), 
+         `value - actual` = `Value (RMB)` - Actual, 
+         `unit - actual` = `Counting Unit` - Actual.Qty)
+
+write.xlsx(contrast.pack, '05_Internal_Review/All_Internal_Data/Internal_Check.xlsx')
 
 
