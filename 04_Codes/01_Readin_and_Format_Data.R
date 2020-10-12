@@ -312,43 +312,43 @@ gi.3 <- raw.az %>%
   ) %>% 
   filter(flag_mkt != 0)
 
-gi.4 <- raw.az %>% 
-  mutate(
-    flag_mkt = case_when(
-      product == "SHU TAI QING       S5J" & 
-        molecule == "MACROGOL(S)+POTASSIUM+SODIUM" & 
-        corp == "STAIDSON BEIJING" & 
-        stri_sub(packid, 1, 5) == "32464" ~ 4, 
-      product == "MOVICOL            NR-" & 
-        molecule == "MACROGOL(S)+POTASSIUM+SODIUM" & 
-        corp == "NORGINE LIM UK" & 
-        stri_sub(packid, 1, 5) == "66157" ~ 4, 
-      product == "FORLAX             IPS" & 
-        molecule == "MACROGOL(S)" & 
-        corp == "IPSEN" & 
-        stri_sub(packid, 1, 5) == "14351" ~ 4, 
-      product == "CHANG SONG         C&Q" & 
-        molecule == "MACROGOL(S)" & 
-        corp == "CQ.PHARSCIN PHARM" & 
-        stri_sub(packid, 1, 5) == "32293" ~ 4, 
-      product == "RUN KE LONG        H3U" & 
-        molecule == "MACROGOL(S)" & 
-        corp == "HN.WARRANT PHARM" & 
-        stri_sub(packid, 1, 5) == "32652" ~ 4, 
-      product == "MACROGOL 4000 POWD HMA" & 
-        molecule == "MACROGOL(S)" & 
-        corp == "HB.MAYINGLONG PH" & 
-        stri_sub(packid, 1, 5) == "41490" ~ 4, 
-      product == "YOU SAI LE         CQ&" & 
-        molecule == "MACROGOL(S)" & 
-        corp == "CQ.SINO BIOPHARM" & 
-        stri_sub(packid, 1, 5) == "57040" ~ 4, 
-      TRUE ~ 0
-    )
-  ) %>% 
-  filter(flag_mkt != 0)
+# gi.4 <- raw.az %>% 
+#   mutate(
+#     flag_mkt = case_when(
+#       product == "SHU TAI QING       S5J" & 
+#         molecule == "MACROGOL(S)+POTASSIUM+SODIUM" & 
+#         corp == "STAIDSON BEIJING" & 
+#         stri_sub(packid, 1, 5) == "32464" ~ 4, 
+#       product == "MOVICOL            NR-" & 
+#         molecule == "MACROGOL(S)+POTASSIUM+SODIUM" & 
+#         corp == "NORGINE LIM UK" & 
+#         stri_sub(packid, 1, 5) == "66157" ~ 4, 
+#       product == "FORLAX             IPS" & 
+#         molecule == "MACROGOL(S)" & 
+#         corp == "IPSEN" & 
+#         stri_sub(packid, 1, 5) == "14351" ~ 4, 
+#       product == "CHANG SONG         C&Q" & 
+#         molecule == "MACROGOL(S)" & 
+#         corp == "CQ.PHARSCIN PHARM" & 
+#         stri_sub(packid, 1, 5) == "32293" ~ 4, 
+#       product == "RUN KE LONG        H3U" & 
+#         molecule == "MACROGOL(S)" & 
+#         corp == "HN.WARRANT PHARM" & 
+#         stri_sub(packid, 1, 5) == "32652" ~ 4, 
+#       product == "MACROGOL 4000 POWD HMA" & 
+#         molecule == "MACROGOL(S)" & 
+#         corp == "HB.MAYINGLONG PH" & 
+#         stri_sub(packid, 1, 5) == "41490" ~ 4, 
+#       product == "YOU SAI LE         CQ&" & 
+#         molecule == "MACROGOL(S)" & 
+#         corp == "CQ.SINO BIOPHARM" & 
+#         stri_sub(packid, 1, 5) == "57040" ~ 4, 
+#       TRUE ~ 0
+#     )
+#   ) %>% 
+#   filter(flag_mkt != 0)
 
-raw.gi <- bind_rows(gi.1, gi.2, gi.3, gi.4) %>% 
+raw.gi <- bind_rows(gi.1, gi.2, gi.3) %>% 
   mutate(TA = 'GI') %>% 
   group_by(year, date, quarter, province, city, district, pchc, TA, atc4, nfc, 
            molecule, product, corp, packid, flag_mkt) %>% 
