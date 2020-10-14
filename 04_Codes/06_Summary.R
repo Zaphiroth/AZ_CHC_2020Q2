@@ -275,6 +275,9 @@ onglyza.history2 <- az.delivery.history %>%
 az.delivery <- bind_rows(az.chc, az.chc.sh) %>% 
   filter(YQ == '2020Q2') %>% 
   bind_rows(az.delivery.history, onglyza.history1, onglyza.history2) %>% 
+  group_by(Pack_ID) %>% 
+  mutate(Pack_DESC = first(na.omit(Pack_DESC))) %>% 
+  ungroup() %>% 
   mutate(`剂型` = if_else(Pack_ID == 'TCM Others', NA_character_, `剂型`), 
          `规格` = if_else(Pack_ID == 'TCM Others', NA_character_, `规格`), 
          `转换比` = ifelse(Pack_ID == 'TCM Others', NA, `转换比`), 

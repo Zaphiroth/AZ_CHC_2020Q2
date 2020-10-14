@@ -245,7 +245,7 @@ colnames(raw.2019) <- c("Year", "Month", "季度", "省份", "城市", "区县",
                         "生产企业", "采购价", "采购数量", "采购金额", 
                         "价格转换比", "最小使用单位数量", "packcode_m")
 
-raw.betaloc.zok.2019 <- raw.2019 %>% 
+raw.az.2019 <- raw.2019 %>% 
   mutate(year = as.character(Year),
          date = stri_paste(year, stri_sub(Month, -2, -1)),
          quarter = `季度`,
@@ -260,33 +260,36 @@ raw.betaloc.zok.2019 <- raw.2019 %>%
          price = `采购价`, 
          units = `采购数量`, 
          sales = `采购金额`) %>% 
-  filter(year == '2019', city %in% c('北京', '苏州'), 
-         stri_sub(packid, 1, 5) == '39609', 
+  left_join(ims.mol, by = 'packid') %>% 
+  filter(year == '2019', 
+         city %in% target.city, 
+         # stri_sub(Prd_desc, -3, -1) %in% c('AZM', 'AZN') | Prd_desc == 'XUE ZHI KANG       BWX', 
          grepl('社区卫生服务', hospital)) %>% 
   distinct() %>% 
-  group_by(year, quarter, province, city, district, hospital, packid) %>% 
+  group_by(year, quarter, province, city, district, hospital, Prd_desc, packid) %>% 
   summarise(sales = sum(sales, na.rm = TRUE)) %>% 
   ungroup()
 
 # 2020
 raw.2020 <- read.csv('02_Inputs/data/ahbjjszj2020Q1Q2_packid_moleinfo.csv')
 
-raw.betaloc.zok.2020 <- raw.2020 %>% 
-  distinct(year = as.character(Year), 
-           quarter = Quarter, 
-           date = as.character(Month), 
-           province = gsub('省|市', '', Province), 
-           city = if_else(City == "市辖区", "北京", gsub("市", "", City)), 
-           district = County, 
-           hospital = Hospital_Name, 
-           packid = stri_pad_left(packcode, 7, 0), 
-           price = Price, 
-           units = Value / Price, 
-           sales = Value) %>% 
-  filter(year == '2020', city %in% c('北京', '苏州'), 
-         stri_sub(packid, 1, 5) == '39609', 
+raw.az.2020 <- raw.2020 %>% 
+  mutate(year = as.character(Year), 
+         quarter = Quarter, 
+         date = as.character(Month), 
+         province = gsub('省|市', '', Province), 
+         city = if_else(City == "市辖区", "北京", gsub("市", "", City)), 
+         district = County, 
+         hospital = Hospital_Name, 
+         packid = stri_pad_left(packcode, 7, 0), 
+         price = Price, 
+         units = Value / Price, 
+         sales = Value) %>% 
+  filter(year == '2020', 
+         # stri_sub(Prd_desc, -3, -1) %in% c('AZM', 'AZN') | Prd_desc == 'XUE ZHI KANG       BWX', 
          grepl('社区卫生服务', hospital)) %>% 
-  group_by(year, quarter, province, city, district, hospital, packid) %>% 
+  distinct() %>% 
+  group_by(year, quarter, province, city, district, hospital, Prd_desc, packid) %>% 
   summarise(sales = sum(sales, na.rm = TRUE)) %>% 
   ungroup()
 
@@ -308,15 +311,64 @@ raw.betaloc.zok.2020 <- raw.2020 %>%
 #   summarise(sales = sum(sales, na.rm = TRUE)) %>% 
 #   ungroup()
 
+# Suzhou
+raw.sz <- bind_rows(raw.az.2019, raw.az.2020) %>% 
+  filter(city == '苏州')
+
+write.xlsx(raw.sz, '05_Internal_Review/Betaloc_ZOK_Check/Suzhou.xlsx')
+
+# delivery
+az.delivery4 <- read.xlsx('02_Inputs/AZ_CHC_2017Q1_2020Q2_20200916.xlsx') %>% 
+  filter(!(YQ == '2020Q1' & City_C == '南京' & Pack_ID == '0237616' & `购买方式` == '通用名')) %>% 
+  distinct(Year, YQ, City_C, TA, Market, Prod_Ename, Pack_ID, `Value.(RMB)`) %>% 
+  filter(Year %in% c('2018', '2019', '2020'), City_C %in% target.city, 
+         stri_sub(Prod_Ename, -3, -1) %in% c('AZM', 'AZN') | Prod_Ename == 'XUE ZHI KANG       BWX') %>% 
+  group_by(quarter = YQ, city = City_C, TA, Market, product = Prod_Ename, packid = Pack_ID) %>% 
+  summarise(sales = sum(`Value.(RMB)`, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  arrange(city, TA, Market, product, packid, quarter) %>% 
+  pivot_wider(id_cols = c(city, TA, Market, product, packid), 
+              names_from = quarter, 
+              values_from = sales) %>% 
+  mutate(flag = 'Projection')
+
 # sales check
-betaloc.zok.city <- bind_rows(raw.betaloc.zok.2019, raw.betaloc.zok.2020) %>% 
-  mutate(type = if_else(grepl('服务站', hospital), '社区卫生服务站', '社区卫生服务中心')) %>% 
-  group_by(quarter, city, type) %>% 
+packid.market <- az.delivery %>% 
+  distinct(Pack_ID, TA, Market)
+
+data1 <- read_feather('05_Internal_Review/Betaloc_ZOK_Check/03_AZ_CHC_Outside_Imp.feather') %>% 
+  filter(year %in% c('2018', '2019'), city %in% target.city) %>% 
+  distinct(quarter, date, city, pchc, TA, packid, sales) %>% 
+  left_join(packid.market, by = c('packid' = 'Pack_ID', 'TA')) %>% 
+  filter(!is.na(Market)) %>% 
+  left_join(ims.mol, by = 'packid') %>% 
+  filter(stri_sub(Prd_desc, -3, -1) %in% c('AZM', 'AZN') | Prd_desc == 'XUE ZHI KANG       BWX') %>% 
+  group_by(quarter, city, TA, Market, product = Prd_desc, packid) %>% 
+  summarise(sales = sum(sales, na.rm = TRUE)) %>% 
+  ungroup()
+
+data2 <- imp.total %>% 
+  filter(year %in% c('2020'), city %in% target.city) %>% 
+  filter(stri_sub(product, -3, -1) %in% c('AZM', 'AZN') | product == 'XUE ZHI KANG       BWX') %>% 
+  distinct(quarter, date, city, pchc, TA, flag_mkt, product, packid, sales) %>% 
+  left_join(packid.market, by = c('packid' = 'Pack_ID', 'TA')) %>% 
+  filter(!is.na(Market)) %>% 
+  group_by(quarter, city, TA, Market, product, packid) %>% 
+  summarise(sales = sum(sales, na.rm = TRUE)) %>% 
+  ungroup()
+
+az.city <- bind_rows(data1, data2) %>% 
+  group_by(quarter, city, TA, Market, product, packid) %>% 
   summarise(sales = sum(sales, na.rm = TRUE)) %>% 
   ungroup() %>% 
-  arrange(city, type, quarter)
+  arrange(city, TA, Market, product, packid, quarter) %>% 
+  pivot_wider(id_cols = c(city, TA, Market, product, packid), 
+              names_from = quarter, 
+              values_from = sales) %>% 
+  mutate(flag = 'Sample') %>% 
+  bind_rows(az.delivery4)
 
-write.xlsx(betaloc.zok.city, '05_Internal_Review/Betaloc_ZOK_Check/Betaloc_ZOK_City.xlsx')
+write.xlsx(az.city, '05_Internal_Review/Betaloc_ZOK_Check/AZ_City.xlsx')
 
 # ins check
 betaloc.zok.ins <- pchc.mapping3 %>% 
@@ -329,10 +381,11 @@ write.xlsx(betaloc.zok.ins, '05_Internal_Review/Betaloc_ZOK_Check/Universe_INS.x
 # top
 raw.top <- read_excel('05_Internal_Review/Betaloc_ZOK_Check/ZOK Data Check.xlsx', sheet = 2)
 
-chk <- bind_rows(raw.betaloc.zok.2019, raw.betaloc.zok.2020) %>% 
+chk <- bind_rows(raw.az.2019, raw.az.2020) %>% 
   distinct(city, hospital)
 
-betaloc.zok.top <- bind_rows(raw.betaloc.zok.2019, raw.betaloc.zok.2020) %>% 
+betaloc.zok.top <- bind_rows(raw.az.2019, raw.az.2020) %>% 
+  filter(stri_sub(packid, 1, 5) == '39609') %>% 
   mutate(hospital_update = case_when(
     hospital %in% c('相城区元和街道社区卫生服务中心') ~ '苏州市相城区元和街道社区卫生服务中心', 
     hospital %in% c('苏州市姑苏区平江街道白塔社区卫生服务中心') ~ '苏州市姑苏区平江街道白塔社区卫生服务中心', 
