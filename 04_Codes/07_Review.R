@@ -336,7 +336,7 @@ az.delivery4 <- read.xlsx('02_Inputs/AZ_CHC_2017Q1_2020Q2_20200916.xlsx') %>%
 packid.market <- az.delivery %>% 
   distinct(Pack_ID, TA, Market)
 
-data1 <- read_feather('05_Internal_Review/Betaloc_ZOK_Check/03_AZ_CHC_Outside_Imp.feather') %>% 
+data1 <- read_feather('05_Internal_Review/Betaloc_ZOK_Check/01_AZ_CHC_Raw_with_TA.feather') %>% 
   filter(year %in% c('2018', '2019'), city %in% target.city) %>% 
   distinct(quarter, date, city, pchc, TA, packid, sales) %>% 
   left_join(packid.market, by = c('packid' = 'Pack_ID', 'TA')) %>% 
