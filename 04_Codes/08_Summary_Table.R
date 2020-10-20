@@ -8,7 +8,7 @@
 
 ##---- Delivery data ----
 # data
-az.delivery.final <- read_xlsx('06_Deliveries/AZ_CHC_2017Q1_2020Q2_20200916.xlsx')
+az.delivery.final <- read_xlsx('06_Deliveries/AZ_CHC_2017Q1_2020Q2_20201016.xlsx')
 
 table.market <- c('CV Market', 'NIAD Market', 'PPI (Oral/IV) Market', 
                   'Linaclotide Market', 'Respules (Asthma&COPD) Market')
@@ -198,7 +198,7 @@ s41.az <- table.data %>%
   filter(Corp_EName == 'ASTRAZENECA GROUP') %>% 
   group_by(City_E) %>% 
   arrange(Year) %>% 
-  mutate(`AZ EI` = `AZ MS%` / lag(`AZ MS%`) * 100) %>% 
+  mutate(`AZ EI` = `AZ MS%` / lag(`AZ MS%`)) %>% 
   ungroup() %>% 
   filter(Year == stri_sub(table.quarter, 1, 4)) %>% 
   select(City_E, `AZ EI`, `AZ MS%`)
@@ -288,6 +288,7 @@ s58.az <- table.data %>%
 
 s58 <- left_join(s58.az, s58.market, by = c('TA', 'Year', 'City_E')) %>% 
   filter(Year == stri_sub(table.quarter, 1, 4)) %>% 
+  arrange(-value) %>% 
   select(TA, City_E, `AZ MS%`, `AZ ΔMS%`, `AZ Sales` = value, `AZ GR%`, `MKT GR%`)
 
 
@@ -456,7 +457,7 @@ s122.az <- az.delivery.final %>%
   summarise(value = sum(value, na.rm = TRUE)) %>% 
   ungroup() %>% 
   group_by(Year, City_E, TA, Market) %>% 
-  mutate(`AZ MS%` = value / sum(value)) %>% 
+  mutate(`AZ MS%` = value / sum(value, na.rm = TRUE)) %>% 
   ungroup() %>% 
   group_by(City_E, TA, Market, Prod_Ename) %>% 
   arrange(Year) %>% 
