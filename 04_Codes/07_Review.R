@@ -324,24 +324,27 @@ raw.sz <- bind_rows(raw.az.2019, raw.az.2020) %>%
 write.xlsx(raw.sz, '05_Internal_Review/Betaloc_ZOK_Check/Suzhou.xlsx')
 
 # delivery
-az.delivery4 <- read.xlsx('02_Inputs/AZ_CHC_2017Q1_2020Q2_20200916.xlsx') %>% 
+az.delivery4 <- read_excel('03_Outputs/AZ_CHC_2017Q1_2020Q2_uniform_20201023.xlsx') %>% 
   filter(!(YQ == '2020Q1' & City_C == '南京' & Pack_ID == '0237616' & `购买方式` == '通用名')) %>% 
-  distinct(Year, YQ, City_C, TA, Market, Prod_Ename, Pack_ID, `Value.(RMB)`) %>% 
-  filter(Year %in% c('2018', '2019', '2020'), City_C %in% target.city, 
-         stri_sub(Prod_Ename, -3, -1) %in% c('AZM', 'AZN') | Prod_Ename == 'XUE ZHI KANG       BWX') %>% 
+  distinct(Year, YQ, City_C, TA, Market, Prod_Ename, Pack_ID, `Value (RMB)`, `Counting Unit`) %>% 
+  filter(Year %in% c('2018', '2019', '2020'), City_C %in% target.city
+         # stri_sub(Prod_Ename, -3, -1) %in% c('AZM', 'AZN') | Prod_Ename == 'XUE ZHI KANG       BWX'
+         ) %>% 
   group_by(quarter = YQ, city = City_C, TA, Market, product = Prod_Ename, packid = Pack_ID) %>% 
-  summarise(sales = sum(`Value.(RMB)`, na.rm = TRUE)) %>% 
+  summarise(sales_proj = sum(`Value (RMB)`, na.rm = TRUE), 
+            dosage_proj = sum(`Counting Unit`, na.rm = TRUE)) %>% 
   ungroup() %>% 
   arrange(city, TA, Market, product, packid, quarter) %>% 
-  pivot_wider(id_cols = c(city, TA, Market, product, packid), 
-              names_from = quarter, 
-              values_from = sales) %>% 
+  # pivot_wider(id_cols = c(city, TA, Market, product, packid), 
+  #             names_from = quarter, 
+  #             values_from = sales) %>% 
   mutate(flag = 'Projection')
 
 # sales check
 packid.market <- az.delivery %>% 
   distinct(Pack_ID, TA, Market)
 
+# Imp
 data3 <- read_feather('05_Internal_Review/Betaloc_ZOK_Check/03_AZ_CHC_Outside_Imp.feather') %>% 
   filter(year %in% c('2018', '2019'), city %in% target.city) %>% 
   mutate(packid = if_else(stri_sub(packid, 1, 5) == '47775', 
@@ -350,25 +353,32 @@ data3 <- read_feather('05_Internal_Review/Betaloc_ZOK_Check/03_AZ_CHC_Outside_Im
          packid = if_else(stri_sub(packid, 1, 5) == '06470', 
                           stri_paste('64895', stri_sub(packid, 6, 7)), 
                           packid)) %>% 
-  distinct(quarter, date, city, pchc, TA, packid, sales) %>% 
+  distinct(quarter, date, city, pchc, TA, packid, units, sales) %>% 
   left_join(packid.market, by = c('packid' = 'Pack_ID', 'TA')) %>% 
   filter(!is.na(Market)) %>% 
   left_join(ims.mol, by = 'packid') %>% 
-  filter(stri_sub(Prd_desc, -3, -1) %in% c('AZM', 'AZN') | Prd_desc == 'XUE ZHI KANG       BWX') %>% 
+  # filter(stri_sub(Prd_desc, -3, -1) %in% c('AZM', 'AZN') | Prd_desc == 'XUE ZHI KANG       BWX') %>% 
   group_by(quarter, city, TA, Market, product = Prd_desc, packid) %>% 
-  summarise(sales_imp = sum(sales, na.rm = TRUE)) %>% 
+  summarise(units_imp = sum(units, na.rm = TRUE), 
+            sales_imp = sum(sales, na.rm = TRUE)) %>% 
   ungroup()
+
+price <- proj.price %>% 
+  distinct(quarter, city, packid, price)
 
 data4 <- imp.total %>% 
   filter(year %in% c('2020'), city %in% target.city) %>% 
-  filter(stri_sub(product, -3, -1) %in% c('AZM', 'AZN') | product == 'XUE ZHI KANG       BWX') %>% 
+  # filter(stri_sub(product, -3, -1) %in% c('AZM', 'AZN') | product == 'XUE ZHI KANG       BWX') %>% 
   distinct(quarter, date, city, pchc, TA, product, packid, sales) %>% 
   left_join(packid.market, by = c('packid' = 'Pack_ID', 'TA')) %>% 
   filter(!is.na(Market)) %>% 
   group_by(quarter, city, TA, Market, product, packid) %>% 
-  summarise(sales = sum(sales, na.rm = TRUE)) %>% 
-  ungroup()
+  summarise(sales_imp = sum(sales, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  left_join(price, by = c('quarter', 'city', 'packid')) %>% 
+  mutate(units_imp = sales_imp / price)
 
+# Raw
 data1 <- read_feather('05_Internal_Review/Betaloc_ZOK_Check/01_AZ_CHC_Raw_with_TA.feather') %>% 
   filter(year %in% c('2018', '2019'), city %in% target.city) %>% 
   mutate(packid = if_else(stri_sub(packid, 1, 5) == '47775', 
@@ -377,13 +387,14 @@ data1 <- read_feather('05_Internal_Review/Betaloc_ZOK_Check/01_AZ_CHC_Raw_with_T
          packid = if_else(stri_sub(packid, 1, 5) == '06470', 
                           stri_paste('64895', stri_sub(packid, 6, 7)), 
                           packid)) %>% 
-  distinct(quarter, date, city, pchc, TA, packid, sales) %>% 
+  distinct(quarter, date, city, pchc, TA, packid, units, sales) %>% 
   left_join(packid.market, by = c('packid' = 'Pack_ID', 'TA')) %>% 
   filter(!is.na(Market)) %>% 
   left_join(ims.mol, by = 'packid') %>% 
-  filter(stri_sub(Prd_desc, -3, -1) %in% c('AZM', 'AZN') | Prd_desc == 'XUE ZHI KANG       BWX') %>% 
+  # filter(stri_sub(Prd_desc, -3, -1) %in% c('AZM', 'AZN') | Prd_desc == 'XUE ZHI KANG       BWX') %>% 
   group_by(quarter, city, TA, Market, product = Prd_desc, packid) %>% 
-  summarise(sales = sum(sales, na.rm = TRUE)) %>% 
+  summarise(units = sum(units, na.rm = TRUE), 
+            sales = sum(sales, na.rm = TRUE)) %>% 
   ungroup() %>% 
   full_join(data3, by = c('quarter', 'city', 'TA', 'Market', 'product', 'packid')) %>% 
   group_by(city, product) %>% 
@@ -392,22 +403,25 @@ data1 <- read_feather('05_Internal_Review/Betaloc_ZOK_Check/01_AZ_CHC_Raw_with_T
   group_by(quarter, city, product) %>% 
   mutate(flag = if_else(all(is.na(sales)), 0, 1)) %>% 
   ungroup() %>% 
-  mutate(sales = if_else(flag == 0, sales_imp * factor, sales))
+  mutate(units_raw = if_else(flag == 0, units_imp * factor, units), 
+         sales_raw = if_else(flag == 0, sales_imp * factor, sales))
 
-chk1 <- chk %>% 
-  group_by(city, product) %>% 
-  mutate(factor = sum(sales, na.rm = TRUE) / sum(sales_imp[!is.na(sales)], na.rm = TRUE)) %>% 
-  ungroup()
+# chk1 <- chk %>% 
+#   group_by(city, product) %>% 
+#   mutate(factor = sum(sales, na.rm = TRUE) / sum(sales_imp[!is.na(sales)], na.rm = TRUE)) %>% 
+#   ungroup()
 
 data2 <- raw.total %>% 
   filter(year %in% c('2020'), city %in% target.city) %>% 
-  filter(stri_sub(product, -3, -1) %in% c('AZM', 'AZN') | product == 'XUE ZHI KANG       BWX') %>% 
-  distinct(quarter, date, city, pchc, TA, product, packid, sales) %>% 
+  # filter(stri_sub(product, -3, -1) %in% c('AZM', 'AZN') | product == 'XUE ZHI KANG       BWX') %>% 
+  distinct(quarter, date, city, pchc, TA, product, packid, units, sales) %>% 
   left_join(packid.market, by = c('packid' = 'Pack_ID', 'TA')) %>% 
   filter(!is.na(Market)) %>% 
   group_by(quarter, city, TA, Market, product, packid) %>% 
-  summarise(sales = sum(sales, na.rm = TRUE)) %>% 
-  ungroup()
+  summarise(units_raw = sum(units, na.rm = TRUE), 
+            sales_raw = sum(sales, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  full_join(data4, by = c('quarter', 'city', 'TA', 'Market', 'product', 'packid'))
 
 # az.imp <- bind_rows(data3, data4) %>% 
 #   group_by(quarter, city, TA, Market, product, packid) %>% 
@@ -419,18 +433,38 @@ data2 <- raw.total %>%
 #               values_from = sales) %>% 
 #   mutate(flag = 'Imputation')
 
-az.city <- bind_rows(data1, data4) %>% 
-  group_by(quarter, city, TA, Market, product, packid) %>% 
-  summarise(sales = sum(sales, na.rm = TRUE)) %>% 
-  ungroup() %>% 
-  arrange(city, TA, Market, product, packid, quarter) %>% 
-  pivot_wider(id_cols = c(city, TA, Market, product, packid), 
-              names_from = quarter, 
-              values_from = sales) %>% 
-  mutate(flag = 'Sample') %>% 
-  bind_rows(az.delivery4)
+# Bind
+pack.size <- read_excel('03_Outputs/AZ_CHC_2017Q1_2020Q2_uniform_20201023.xlsx') %>% 
+  distinct(packid = Pack_ID, size = `转换比`)
 
-write.xlsx(az.city, '05_Internal_Review/Betaloc_ZOK_Check/AZ_City1.xlsx')
+az.city <- bind_rows(data1, data2) %>% 
+  group_by(quarter, city, TA, Market, product, packid) %>% 
+  summarise(units_raw = sum(units_raw, na.rm = TRUE), 
+            sales_raw = sum(sales_raw, na.rm = TRUE), 
+            units_imp = sum(units_imp, na.rm = TRUE), 
+            sales_imp = sum(sales_imp, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  full_join(az.delivery4, by = c('quarter', 'city', 'TA', 'Market', 'product', 'packid')) %>% 
+  left_join(pack.size, by = 'packid') %>% 
+  mutate(dosage_raw = units_raw * size, 
+         dosage_imp = units_imp * size) %>% 
+  group_by(quarter, city, TA, Market, product, packid) %>% 
+  summarise(dosage_raw = sum(dosage_raw, na.rm = TRUE), 
+            sales_raw = sum(sales_raw, na.rm = TRUE), 
+            dosage_imp = sum(dosage_imp, na.rm = TRUE), 
+            sales_imp = sum(sales_imp, na.rm = TRUE), 
+            dosage_proj = sum(dosage_proj, na.rm = TRUE), 
+            sales_proj = sum(sales_proj, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(az = if_else(stri_sub(product, -3, -1) %in% c('AZM', 'AZN') | product == 'XUE ZHI KANG       BWX', 1, 0)) %>% 
+  arrange(city, TA, Market, az, product, packid, quarter)# %>% 
+  # pivot_wider(id_cols = c(city, TA, Market, product, packid), 
+  #             names_from = quarter, 
+  #             values_from = sales) %>% 
+  # mutate(flag = 'Sample') %>% 
+  # bind_rows(az.delivery4)
+
+write.xlsx(az.city, '05_Internal_Review/AZ_Proj_Rate.xlsx')
 
 # ins check
 betaloc.zok.ins <- pchc.mapping3 %>% 
