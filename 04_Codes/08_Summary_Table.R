@@ -8,7 +8,7 @@
 
 ##---- Delivery data ----
 # data
-az.delivery.final <- read_xlsx('06_Deliveries/AZ_CHC_2017Q1_2020Q2_20201016.xlsx')
+az.delivery.final <- read_xlsx('06_Deliveries/AZ_CHC_2017Q1_2020Q2_20201027_m.xlsx', sheet = 2)
 
 table.market <- c('CV Market', 'NIAD Market', 'PPI (Oral/IV) Market', 
                   'Linaclotide Market', 'Respules (Asthma&COPD) Market')
@@ -536,7 +536,7 @@ writeDataTable(wb, 'S11-2', s112)
 writeDataTable(wb, 'S12-1', s121)
 writeDataTable(wb, 'S12-2', s122)
 
-saveWorkbook(wb, '05_Internal_Review/Summary_Table.xlsx', overwrite = TRUE)
+saveWorkbook(wb, '03_Outputs/Summary_Table.xlsx', overwrite = TRUE)
 
 
 
