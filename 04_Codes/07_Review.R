@@ -521,3 +521,31 @@ betaloc.zok.top <- bind_rows(raw.az.2019, raw.az.2020) %>%
 write.xlsx(betaloc.zok.top, '05_Internal_Review/Betaloc_ZOK_Check/Betaloc_ZOK_Top.xlsx')
 
 
+##---- Price ----
+az.delivery11 <- az.delivery10 %>% 
+  group_by(City_C, YQ, Pack_ID) %>% 
+  mutate(`Value (RMB)` = as.numeric(which.max(table(`Value (RMB)`))), 
+         `价格` = as.numeric(which.max(table(`价格`)))) %>% 
+  ungroup() %>% 
+  mutate(`Total Unit` = `Value (RMB)` / `价格`, 
+         `Counting Unit` = `Total Unit` * `转换比`)
+
+chk <- az.delivery10 %>% 
+  select(-Market) %>% 
+  distinct() %>% 
+  group_by(City_C, YQ, Pack_ID) %>% 
+  filter(max(`价格`) - min(`价格`) >= 0.01) %>% 
+  ungroup() %>% 
+  add_count(City_C, YQ, Pack_ID) %>% 
+  filter(n > 1) %>% 
+  arrange(Pack_ID, YQ, City_C)
+
+chk1 <- az.delivery10 %>% 
+  select(-Market) %>% 
+  distinct() %>% 
+  filter(Pack_ID %in% chk$Pack_ID) %>% 
+  arrange(Pack_ID, YQ, City_C)
+
+write.xlsx(chk, '05_Internal_Review/Price_Check.xlsx')
+
+
