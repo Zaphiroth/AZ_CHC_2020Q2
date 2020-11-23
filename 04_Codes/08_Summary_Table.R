@@ -8,7 +8,7 @@
 
 ##---- Delivery data ----
 # data
-az.delivery.final <- read_xlsx('06_Deliveries/AZ_CHC_2017Q1_2020Q2_20201027_m.xlsx', sheet = 2)
+az.delivery.final <- read_xlsx('06_Deliveries/AZ_CHC_2017Q1_2020Q2_20201110_final.xlsx')
 
 table.market <- c('CV Market', 'NIAD Market', 'PPI (Oral/IV) Market', 
                   'Linaclotide Market', 'Respules (Asthma&COPD) Market')
